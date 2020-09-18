@@ -6,17 +6,21 @@ def assign_locations(dfg, n):
     for i in dfg:
         if i.func == 'Read':
             inputs[i] = 0
-    batch = int((len(inputs)-1)/n)
-    counter1 = 0
-    counter2 = 0
+    len_inp = len(inputs)
+    slot = 0
+    counter = 0
     for i in dfg:
         if i in inputs:
-            inputs[i] = counter2
-            if counter1 == batch:
-                counter2 += 1
-                counter1 = 0
+            if len_inp > n:
+                inputs[i] = slot
+                counter += 1
+                len_inp -= 1
+                if counter > 2:
+                    slot += 1
+                    counter = 0
             else:
-                counter1 += 1
+                inputs[i] = slot
+                slot += 1
         else:
             inputs[i] = -1
     return inputs
@@ -27,6 +31,105 @@ def is_path_set(pos, x):
         if i != x:
             return False
     return True
+
+
+def find_free_step(pes, wires, x, y, start):
+    to_set = -1
+    step = start
+    if x < y:
+        while to_set == -1:
+            for i in range(step, step+y-x):
+                if i >= len(pes):
+                    to_set = step
+                    break
+                elif wires[i][x+i-step] or wires[i][x+i-step+1]:
+                    break
+                elif i == step and pes[i][x+i-step]:  # i-step = 0
+                    break
+                elif i == step+y-x-1 and not pes[i][x+i-step+1]:  # x+i-step+1 = y
+                    to_set = step
+            step += 1
+    elif x > y:
+        while to_set == -1:
+            for i in range(step, step+x-y):
+                if i >= len(pes):
+                    to_set = step
+                    break
+                elif wires[i][x-(i-step)] or wires[i][x-(i-step)-1]:
+                    break
+                elif i == step and pes[i][x-(i-step)]:
+                    break
+                elif i == step+x-y-1 and pes[i][x-(i-step)-1]:
+                    to_set = step
+            step += 1
+    else:
+        for i in range(start, len(pes)):
+            if not pes[i][x]:
+                return i
+        return len(pes)
+    return to_set
+
+
+def schedule_nodes(pes, wires, step, x, y, config, slot, node):
+    if x < y:
+        for i in range(step, step+y-x):
+            if i < len(pes):
+                wires[i][x+i-step] = True
+                wires[i][x+i-step+1] = True
+                config[i].ccm6[x+i-step] = "through"
+                config[i].ccm6[x+i-step+1] = "through"
+            else:
+                pes.append([False for _ in range(len(pes[0]))])
+                wires.append([True if z == x+i-step or z == x+i-step+1 else False for z in range(len(pes[0]))])
+                config.append(Config(len(pes[0])))
+                config[-1].ccm6[x+i-step] = "through"
+                config[-1].ccm6[x+i-step+1] = "through"
+        pes[step][x] = True
+        pes[step+y-x-1][y] = True
+        config[step].ccm1[x] = "reading node " + str(node)
+        config[step].ccm6[x] = "out"
+        config[step+y-x-1].ccm6[y] = "in"
+    elif x > y:
+        for i in range(step, step+x-y):
+            if i < len(pes):
+                wires[i][x-(i-step)] = True
+                wires[i][x-(i-step)-1] = True
+                config[i].ccm6[x-(i-step)] = "through"
+                config[i].ccm6[x-(i-step)-1] = "through"
+            else:
+                pes.append([False for _ in range(len(pes[0]))])
+                wires.append([True if z == x-(i-step) or z == x-(i-step)-1 else False for z in range(len(pes[0]))])
+                config.append(Config(len(pes[0])))
+                config[-1].ccm6[x-(i-step)] = "through"
+                config[-1].ccm6[x-(i-step)-1] = "through"
+        pes[step][x] = True
+        pes[step+x-y-1][y] = True
+        config[step].ccm1[x] = "reading node " + str(node)
+        config[step].ccm6[x] = "out"
+        config[step+x-y-1].ccm6[y] = "in"
+    else:
+        if step < len(pes):
+            pes[step][x] = True
+        else:
+            pes.append([True if i == x else False for i in range(len(pes[0]))])
+            wires.append([False for _ in range(len(pes[0]))])
+            config.append(Config(len(pes[0])))
+        config[step].ccm1[x] = "reading node " + str(node)
+        config[step].ccm3[x] = "intoDPR" + str(slot+2)
+
+
+def process_node(pes, wires, step, succ_num, pe_num, config):
+    if step < len(pes):
+        pes[step][pe_num] = True
+    else:
+        pes.append([False if x != pe_num else True for x in range(len(pes[0]))])
+        wires.append([False for _ in range(len(pes[0]))])
+        config.append(Config(len(pes[0])))
+    if succ_num > 1:
+        config[step].ccm5[pe_num] = "intoMem"
+        process_node(pes, wires, step+1, 1, pe_num, config)
+    else:
+        config[step].ccm3[pe_num] = "intoDPR2"
 
 
 def free_all_pe(pes):
@@ -114,6 +217,14 @@ def find_linear_m(crit_paths, node_pos_orig, pred, n):
     return mins
 
 
-def find_transf(transf, list):
-    for i in list:
-        print('kek')
+def check_pred(nodes_set, pred):
+    for node in pred:
+        if nodes_set[node] == -1:
+            return False
+    return True
+
+
+def are_free(pe1, pe2):
+    if pe1.wire.is_busy or pe2.wire.is_busy or pe1.operation or pe2.operation:
+        return False
+    return True

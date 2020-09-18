@@ -24,6 +24,7 @@ class PE:
     def __repr__(self):
         return str(self.wire.is_busy)
 
+
 class Wire:
     def __init__(self, name, is_busy):
         self.name = name
@@ -36,7 +37,18 @@ class Wire:
     def __repr__(self):
         return "Wire" + self.name
 
+
 class Step:
     def __init__(self, PEs, node_pos):
         self.PEs = PEs
         self.positions = node_pos
+
+
+class Config:
+    def __init__(self, n):
+        self.ccm1 = [None for _ in range(n)]
+        self.ccm2 = [None for _ in range(n)]
+        self.ccm3 = [None for _ in range(n)]
+        self.ccm4 = [None for _ in range(n)]
+        self.ccm5 = [None for _ in range(n)]
+        self.ccm6 = [None for _ in range(n)]
