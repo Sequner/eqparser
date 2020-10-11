@@ -59,7 +59,7 @@ def find_free_step(pes, wires, x, y, start):
                     break
                 elif i == step and pes[i][x-(i-step)]:
                     break
-                elif i == step+x-y-1 and pes[i][x-(i-step)-1]:
+                elif i == step+x-y-1 and not pes[i][x-(i-step)-1]:
                     to_set = step
             step += 1
     else:
@@ -127,9 +127,15 @@ def process_node(pes, wires, step, succ_num, pe_num, config):
         config.append(Config(len(pes[0])))
     if succ_num > 1:
         config[step].ccm5[pe_num] = "intoMem"
-        process_node(pes, wires, step+1, 1, pe_num, config)
     else:
         config[step].ccm3[pe_num] = "intoDPR2"
+
+
+def is_pred_in_mclm(nodes, pred):
+    for i in pred:
+        if nodes[i] == -2:
+            return False
+    return True
 
 
 def free_all_pe(pes):

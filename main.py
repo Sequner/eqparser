@@ -30,42 +30,54 @@ for i in graph:
 PEs = [[False for x in range(n)]]
 wires = [[False for x in range(n)]]
 configs = [Config(n)]
-
-crit_pe_inputs = [[] for x in range(len(crit_paths))]
-mclm = [[] for x in range(n)]
-step_node_set = {}
-start = [0 for x in range(len(crit_paths))]
+start = [0 for _ in range(len(crit_paths))]
+offset = {}
+mclm = {}
+for i in node_loc:
+    offset[i] = -1
+    mclm[i] = False
 
 while not_scheduled != 0:
     for dest in range(len(crit_paths)):
         crit = crit_paths[dest]
-        for i in range(len(crit)):
-            if node_loc[crit[i]] != -1:
-                continue
+        for i in range(start[dest], len(crit)):
             if not alloc.check_pred(node_loc, pred[crit[i]]):
                 break
             last_step = 0
             # NODE DELIVERY START
-            if i > 0:
+            if not alloc.is_pred_in_mclm(node_loc, pred[crit[i]]):
                 j = 1 if pred[crit[i]][0] == crit[i-1] else 0
-                start[dest] -= abs(node_loc[pred[crit[i]][j]] - mins[dest]) - 2
-                step = alloc.find_free_step(PEs, wires, node_loc[pred[crit[i]][j]], mins[dest], start[dest])
-                alloc.schedule_nodes(PEs, wires, step, node_loc[pred[crit[i]][j]], mins[dest], configs, 1, pred[crit[i]][j])
+                offset_step = max(offset[pred[crit[i]][1-j]] - abs(node_loc[pred[crit[i]][j]] - mins[dest]),
+                                  offset[pred[crit[i]][j]])
+                step = alloc.find_free_step(PEs, wires, node_loc[pred[crit[i]][j]], mins[dest], offset_step)
+                alloc.schedule_nodes(PEs, wires, step, node_loc[pred[crit[i]][j]], mins[dest], configs, 1,
+                                     pred[crit[i]][j])
                 incr = abs(mins[dest]-node_loc[pred[crit[i]][j]])
                 last_step = step + incr if incr > 0 else step + 1
             else:
                 for j in range(len(pred[crit[i]])):
                     node = pred[crit[i]][j]
-                    step = alloc.find_free_step(PEs, wires, node_loc[node], mins[dest], start[dest])
+                    offset_step = max(offset[pred[crit[i]][1-j]] - abs(node_loc[node] - mins[dest]), offset[node])
+                    offset_step = 0 if offset_step < 0 else offset_step
+                    step = alloc.find_free_step(PEs, wires, node_loc[node], mins[dest], offset_step)
                     alloc.schedule_nodes(PEs, wires, step, node_loc[node], mins[dest], configs, j, node)
                     incr = step + abs(mins[dest] - node_loc[node])
                     incr = step + 1 if incr == step else incr
                     last_step = incr if incr > last_step else last_step
+
             # NODE DELIVERY END
             alloc.process_node(PEs, wires, last_step, len(graph[crit[i]]), mins[dest], configs)
-            start[dest] = last_step + 1 if len(graph[crit[i]]) > 1 else last_step
+            node_loc[crit[i]] = mins[dest] if len(graph[crit[i]]) > 1 else -2  # -2 is state when result is in DPR
+            offset[crit[i]] = last_step + 1
             not_scheduled -= 1
-            node_loc[crit[i]] = mins[dest]
+            start[dest] += 1
+            if crit[i].name == '10':
+                for h in range(len(PEs)):
+                    print("Step " + str(h))
+                    print(PEs[h])
+                    print(wires[h])
+                    print(configs[h].ccm1)
+                    print(configs[h].ccm3)
 
 for i in range(len(PEs)):
     print("Step " + str(i))
@@ -73,4 +85,7 @@ for i in range(len(PEs)):
     print(wires[i])
     print(configs[i].ccm1)
     print(configs[i].ccm3)
+
 print(node_loc)
+# print(crit_paths)
+# print(offset)
