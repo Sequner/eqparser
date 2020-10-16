@@ -131,11 +131,8 @@ def process_node(pes, wires, step, succ_num, pe_num, config):
         config[step].ccm3[pe_num] = "intoDPR2"
 
 
-def is_pred_in_mclm(nodes, pred):
-    for i in pred:
-        if nodes[i] == -2:
-            return False
-    return True
+def are_pred_in_mclm(nodes, pred):
+    return nodes[pred[0]] and nodes[pred[1]]
 
 
 def free_all_pe(pes):

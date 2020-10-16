@@ -35,7 +35,7 @@ offset = {}
 mclm = {}
 for i in node_loc:
     offset[i] = -1
-    mclm[i] = False
+    mclm[i] = True if i.func == 'Read' else False
 
 while not_scheduled != 0:
     for dest in range(len(crit_paths)):
@@ -45,7 +45,7 @@ while not_scheduled != 0:
                 break
             last_step = 0
             # NODE DELIVERY START
-            if not alloc.is_pred_in_mclm(node_loc, pred[crit[i]]):
+            if not alloc.are_pred_in_mclm(mclm, pred[crit[i]]):
                 j = 1 if pred[crit[i]][0] == crit[i-1] else 0
                 offset_step = max(offset[pred[crit[i]][1-j]] - abs(node_loc[pred[crit[i]][j]] - mins[dest]),
                                   offset[pred[crit[i]][j]])
@@ -64,20 +64,13 @@ while not_scheduled != 0:
                     incr = step + abs(mins[dest] - node_loc[node])
                     incr = step + 1 if incr == step else incr
                     last_step = incr if incr > last_step else last_step
-
             # NODE DELIVERY END
             alloc.process_node(PEs, wires, last_step, len(graph[crit[i]]), mins[dest], configs)
-            node_loc[crit[i]] = mins[dest] if len(graph[crit[i]]) > 1 else -2  # -2 is state when result is in DPR
+            node_loc[crit[i]] = mins[dest]
+            mclm[crit[i]] = True if len(graph[crit[i]]) > 1 else False
             offset[crit[i]] = last_step + 1
             not_scheduled -= 1
             start[dest] += 1
-            if crit[i].name == '10':
-                for h in range(len(PEs)):
-                    print("Step " + str(h))
-                    print(PEs[h])
-                    print(wires[h])
-                    print(configs[h].ccm1)
-                    print(configs[h].ccm3)
 
 for i in range(len(PEs)):
     print("Step " + str(i))
@@ -88,4 +81,4 @@ for i in range(len(PEs)):
 
 print(node_loc)
 # print(crit_paths)
-# print(offset)
+print(offset)
