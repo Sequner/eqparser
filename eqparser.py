@@ -5,17 +5,27 @@ def get_graph(eq):
     nxt = [-1 for x in eq]  # array that will store the sequence of dfg
     # elements with value -1 are not included in dfg except 1st element
     stack = []
-    for i in range(2, len(eq)):
+    start = 0
+    while eq[start] != '=':
+        start += 1
+    i = start
+    while i < len(eq)-1:
+        i += 1
         char = eq[i]
         if char not in "+-*/()":
-            if eq[i-1] == '(' or eq[i-1] == '=':
-                nxt[i] = i + 1
-            elif eq[i-1] == '*' or eq[i-1] == '/' or i == len(eq) - 1:
-                nxt[i] = i - 1
+            varlen = 0
+            while i+1 <= len(eq)-1 and eq[i+1] not in "+-*/()":
+                nxt[i+1] = -2
+                varlen += 1
+                i += 1
+            if eq[i-varlen-1] == '*' or eq[i-varlen-1] == '/' or i == len(eq) - 1:
+                nxt[i-varlen] = i - varlen - 1
             elif eq[i+1] == '*' or eq[i+1] == '/':
-                nxt[i] = i + 1
+                nxt[i-varlen] = i + 1
+            elif eq[i-varlen-1] == '(' or eq[i-varlen-1] == '=':
+                nxt[i-varlen] = i + 1
             else:
-                nxt[i] = i - 1
+                nxt[i-varlen] = i - varlen - 1
             if i == len(eq) - 1:
                 nxt[stack.pop()] = 0
         else:
@@ -66,24 +76,39 @@ def get_graph(eq):
                             nxt[index] = stack[-1]
                         nxt[stack.pop()] = 0
     counter = 1
-    nodes = [Node(eq[0], 'Write')]
+
+    nodes = [Node(eq[0:start], 'Write')]
+    for i in range(start-1):
+        nodes.append(Node(None, None))
     generated = {}
-    for i in range(1, len(eq)):  # creating nodes array
-        if nxt[i] == -1:
+    i = start - 1
+    while i < len(eq)-1:  # creating nodes array
+        i += 1
+        if nxt[i] == -1 or nxt[i] == -2:
             nodes.append(Node(None, None))
         elif eq[i] in '+-*/':
             nodes.append(Node(str(counter), eq[i]))
             counter += 1
-        elif eq[i] not in generated:
-            generated[eq[i]] = Node(eq[i], 'Read')
-            nodes.append(generated[eq[i]])
         else:
-            nodes.append(generated[eq[i]])
+            name = eq[i]
+            varlen = 0
+            while i+1 <= len(eq)-1 and nxt[i+1] == -2:
+                i += 1
+                name += eq[i]
+                varlen += 1
+            if name not in generated:
+                generated[name] = Node(name, 'Read')
+                nodes.append(generated[name])
+            else:
+                nodes.append(generated[name])
+            for j in range(varlen):
+                nodes.append(Node(None, None))
 
     graph = {}
-    for i in range(2, len(eq)):  # creating graph
+
+    for i in range(start+1, len(eq)):  # creating graph
         index = nxt[i]
-        if index == -1:
+        if index == -1 or index == -2:
             continue
         if not nodes[i] in graph:
             graph[nodes[i]] = [nodes[index]]
@@ -91,7 +116,6 @@ def get_graph(eq):
             graph[nodes[i]].append(nodes[index])
         if not nodes[index] in graph:
             graph[nodes[index]] = []
-
     pred = dfg.find_pred(graph)
     to_change = True
     while to_change:

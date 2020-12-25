@@ -15,9 +15,10 @@ def assign_locations(dfg, n):
                 inputs[i] = slot
                 counter += 1
                 len_inp -= 1
-                if counter > 2:
+                if counter > 1:
                     slot += 1
                     counter = 0
+                    n -= 1
             else:
                 inputs[i] = slot
                 slot += 1
@@ -132,7 +133,12 @@ def process_node(pes, wires, step, succ_num, pe_num, config):
 
 
 def are_pred_in_mclm(nodes, pred):
-    return nodes[pred[0]] and nodes[pred[1]]
+    t1 = t2 = False
+    for i in nodes:
+        for j in i:
+            t1 = True if j == pred[0] else t1
+            t2 = True if j == pred[1] else t2
+    return t1 and t2
 
 
 def free_all_pe(pes):
